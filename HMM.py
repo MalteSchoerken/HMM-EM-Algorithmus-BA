@@ -198,7 +198,7 @@ for i in range(10):
     print("pi = ", pi)
     print("b = ", b)
     print("l = ", l)
-print("y = ", y3)    
+print("y = ", y4)    
 plt.show()
 
 
