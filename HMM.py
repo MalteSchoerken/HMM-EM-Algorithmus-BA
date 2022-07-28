@@ -7,18 +7,10 @@ Created on Thu Jul 14 15:54:45 2022
 
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
-y = np.array([4,3,2,1,0,0,0,0,1,2,3])
-y2 = np.array([0,4,3,2,1,0,0,0,0,1,2,3])
-y3 = np.random.randint(5,size=(10))
-y4 = [4,3,2,1,0,0,0,0,1,2,3,0,4,3,2,1,0,0,0,0,1,2,3,0,4,3,2,1,0,0,0,0,1,2,3,0,4,3,2,1,0,0,0,0,1,2,3,0,4,3,2,1,0,0,0,0,1,2,3]
-b = np.ones((4,5)) * 0.2
-pi = np.ones((4,)) * 0.25
-P = np.ones((4,4)) * 0.25
-P2 = np.array([[0.1,0.1,0.4,0.4],[0,0,0.5,0.5],[0.3,0.4,0.3,0],[0.25,0.25,0.25,0.25]])
-b = np.array([[0.1,0.1,0.1,0.3,0.4],[0.1,0.1,0.1,0.5,0.2],[0.3,0.3,0.3,0.05,0.05],[0.2,0.1,0.2,0.25,0.25]])
 
-# berechnet Vorwärtswahrscheinlichkeit
+# berechnet die Vorwärtswahrscheinlichkeit
 def forward(y,b,pi,P):
     T = len(y) #Anzahl Beobachtungen
     n = len(pi) #Anzahl Zustände
@@ -36,7 +28,7 @@ def forward(y,b,pi,P):
             fwd[j,t+1] *= b[j][y[t+1]]
     return fwd
 
-# berechnet Rückwärtswahrscheinlichkeit
+# berechnet die Rückwärtswahrscheinlichkeit
 def backward(y,b,pi,P):
     T = len(y) #Anzahl Beobachtungen
     n = len(pi) #Anzahl Zustände
@@ -84,7 +76,7 @@ def updateP(y,b,pi,Pm):
             P[i,j] = p2[i,j]/sump2[i]                     
     return P
 
-# eine Iteration von pi
+# eine Iteration der Startwahrscheinlichkeiten pi
 def updatePi(y,b,pim,P):
     n = len(pim) #Anzahl Zustände
     fwd = forward(y, b, pim, P)
@@ -108,6 +100,7 @@ def updatePi(y,b,pim,P):
             pi[i] += p2[i,j]  
     return pi
 
+# eine Iteration der Emissionswahrscheinlichkeiten b
 def updateB(y,bm,pi,P):
     T = len(y) #Anzahl Beobachtungen
     n,m = np.shape(bm) #Anzahl Zustände, Ausgabesymbole
@@ -149,8 +142,10 @@ def updateB(y,bm,pi,P):
             b[i,j] = p4[i,j]/sump4[i]                     
     return b
 
-# param: y Beobachtungen, n Zustände, m Ausgabesymbole
-def EM(y,n,m,maxiter=100):
+
+# Der EM-Algorithmus für HMMs
+# Parameter: y Beobachtungen, n Zustände, m Ausgabesymbole, maxiter maximale Iterationen, epsilon Wert für die Abbruchbedingung
+def EM(y,n,m,maxiter=100, epsilon = 10e-12):
     # zufällige Initialiesierung
     P = np.random.random((n,n)) 
     pi = np.random.random((n,)) 
@@ -164,9 +159,6 @@ def EM(y,n,m,maxiter=100):
     # Iteration
     likelihood = np.zeros((100,))
     for i in range(maxiter):
-        #print(P)
-        #print(pi)
-        #print(b)
         likelihood[i] = np.sum(forward(y, b, pi, P)[:,len(y)-1])
         P0 = np.copy(P)
         pi0 = np.copy(pi)
@@ -174,36 +166,148 @@ def EM(y,n,m,maxiter=100):
         P = updateP(y, b0, pi0, P0)
         pi = updatePi(y, b0, pi0, P0)
         b = updateB(y, b0, pi0, P0)
-        if (np.linalg.norm(P0-P) + np.linalg.norm(b0-b) + np.linalg.norm(pi0-pi) < 10e-8):
+        """ alternative Abbruch Bedingung
+        if (np.log(likelihood[i])-np.log(likelihood[i-1]) <= epsilon):
             break
-    print(i)
+        """ 
+        if (np.linalg.norm(P0-P) + np.linalg.norm(b0-b) + np.linalg.norm(pi0-pi) < epsilon):
+            break
     return np.around(P,5),np.around(pi,5),np.around(b,5), likelihood[likelihood != 0]
 
+# generiert T Zustände und Beobachtungen für gegebenes HMM
+# Parameter: P Übergangsmatrix, b Emissionswahrscheinlichkeiten, pi Startwahrscheinlichkeiten, T Iterationen
+def sampleHMM(P,b,pi,T):
+    n,m = np.shape(b) #Anzahl Zustände, Ausgabesymbole
+    statespace = np.arange(0,n)
+    observationspace = np.arange(0,m)
+    states = np.zeros((T,))
+    observations = np.zeros((T,))
+    states[0] = np.random.choice(statespace,p = pi)
+    observations[0] = np.random.choice(observationspace,p = b[math.floor(states[0]),:])
+    for i in range(1,T):
+        states[i] = np.random.choice(statespace,p = P[math.floor(states[i-1]),:])
+        observations[i] = np.random.choice(observationspace,p = b[math.floor(states[i]),:])
+    return observations, states
+    
+
+#%% Test 1: 2 Zustände, 2 Ausgaben, 12 Beobachtungen
+
+y2 = np.array([0,1,1,1,1,0,0,0,0,1,1,1])
+
+for i in range(10):    
+    P,pi,b,l = EM(y2,2,2)
+    plt.plot(range(1,len(l)), np.log(l[1:]), 'b-')
+    print("P = ", P)
+    print("pi = ", pi)
+    print("b = ", b)
+ 
+plt.title("EM-Algorithm")
+plt.xlabel("Iterations")
+plt.ylabel("Log-Likelihood")
+plt.show()
+
+
+#%% Test 2: 4 Zustände, 5 Ausgaben, 12 Beobachtungen
+
+y = np.array([4,3,2,1,0,0,0,0,1,2,3])
 
 for i in range(10):    
     P,pi,b,l = EM(y,4,5)
-    plt.semilogy(range(len(l)), l, 'b-')
+    plt.plot(range(1,len(l)), np.log(l[1:]), 'b-')
     print("P = ", P)
     print("pi = ", pi)
     print("b = ", b)
-    print("l = ", l)
-    #print("likelihood = ", np.sum(forward(y, b, pi, P)[:,len(y)-1]))
+
+plt.title("EM-Algorithm")
+plt.xlabel("Iterations")
+plt.ylabel("Log-Likelihood")
 plt.show()
 
+#%% Test 3: 4 Zustände, 5 Ausgaben, 30 Beobachtungen
+
+y = np.array([4,3,2,1,0,0,0,0,1,2,3,0,1,2,4,4,4,1,1,2,0,1,2,0,0,0,1,2,1,4])
 
 for i in range(10):    
-    P,pi,b,l = EM(y4,4,5)
-    plt.plot(range(len(l)), l, 'b-')
+    P,pi,b,l = EM(y,4,5)
+    plt.plot(range(1,len(l)), np.log(l[1:]), 'b-')
     print("P = ", P)
     print("pi = ", pi)
     print("b = ", b)
-    print("l = ", l)
-print("y = ", y4)    
+  
+plt.title("EM-Algorithm")
+plt.xlabel("Iterations")
+plt.ylabel("Log-Likelihood")
+plt.show()
+print(len(y))
+
+#%% Test 4: 50 Samples, 4 Zustände, 5 Ausgaben
+
+pi = np.ones((4,)) * 0.25
+b = np.ones((4,5)) * 0.2
+P = np.ones((4,4)) * 0.25
+
+y_sample,z_sample = sampleHMM(P, b, pi, 50)
+for i in range(10):    
+    P,pi,b,l = EM(y_sample.astype(int),4,5)
+    plt.plot(range(1,len(l)), np.log(l[1:]), 'b-')
+    print("P = ", P)
+    print("pi = ", pi)
+    print("b = ", b)
+
+plt.title("EM-Algorithm")
+plt.xlabel("Iterations")
+plt.ylabel("Log-Likelihood")
 plt.show()
 
+#%% Test 5: 200 Samples, 2 Zustände, 2 Ausgaben
 
+pi2 = np.array([0.9,0.1])
+P2 = np.array([[0.9,0.1],[1,0]])
+b2 = np.array([[0.8,0.2],[0.1,0.9]])
 
+y_sample,z_sample = sampleHMM(P2, b2, pi2, 200)
+for i in range(10):    
+    P,pi,b,l = EM(y_sample.astype(int),2,2)
+    plt.plot(range(1,len(l)), np.log(l[1:]), 'b-')
+    print("P = ", P)
+    print("pi = ", pi)
+    print("b = ", b)
 
+plt.title("EM-Algorithm")
+plt.xlabel("Iterations")
+plt.ylabel("Log-Likelihood")
+plt.show()
+
+#%% Test 6
+
+# Das Problem ist, dass es HMMs gibt, die gleich sind aber unterschiedliche Parameter haben. 
+pi2 = np.array([0.9,0.1])
+P2 = np.array([[0.9,0.1],[1,0]])
+b2 = np.array([[0.8,0.2],[0.1,0.9]])
+
+Pdiff = np.zeros((10,))
+pidiff = np.zeros((10,))
+bdiff = np.zeros((10,))
+
+y_sample,z_sample = sampleHMM(P2, b2, pi2, 200)
+for i in range(10):    
+    P,pi,b,l = EM(y_sample.astype(int),2,2)
+    Pdiff[i] = np.linalg.norm(P2-P)
+    pidiff[i] = np.linalg.norm(pi2-pi)
+    bdiff[i] = np.linalg.norm(b2-b)
+    print("P = ", P)
+    print("pi = ", pi)
+    print("b = ", b)
+    print(np.log(l[len(l)-1]))
+print(y_sample)
+
+plt.plot(range(10), Pdiff, 'r.')
+plt.plot(range(10), pidiff, 'g.')
+plt.plot(range(10), bdiff, 'b.')
+plt.title("EM-Algorithm")
+plt.xlabel("Calls")
+plt.ylabel("Norm")
+plt.show()
 
 
 
