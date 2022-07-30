@@ -58,7 +58,7 @@ def updateP(y,b,pi,Pm):
     for i in range(n):
         for j in range(n):
             for t in range(T-1):
-                p1[i,j,t] = bwd[j,t+1]*fwd[i,t]*b[j,y[t+1]]*Pm[i,j]
+                p1[i,j,t] = bwd[j,t+1] * fwd[i,t] * b[j,y[t+1]] * Pm[i,j]
                 sump1[t] += p1[i,j,t]
     
     # Berechnung von p2 = \sum_{t}p(Z_{t}=i, Z_{t+1}=j | y, \theta)
@@ -88,7 +88,7 @@ def updatePi(y,b,pim,P):
     sump1 = np.zeros((n,))
     for i in range(n):
         for j in range(n):
-            p1[i,j] = bwd[j,1]*fwd[i,0]*b[j,y[1]]*P[i,j]
+            p1[i,j] = bwd[j,1] * fwd[i,0] * b[j,y[1]] * P[i,j]
             sump1 += p1[i,j]
             
     # Berechnung von p2 = p(Z_{t}=i, Z_{t+1}=j | y, \theta) 
@@ -114,7 +114,7 @@ def updateB(y,bm,pi,P):
     for i in range(n):
         for j in range(n):
             for t in range(T-1):
-                p1[i,j,t] = bwd[j,t+1]*fwd[i,t]*bm[j,y[t+1]]*P[i,j]
+                p1[i,j,t] = bwd[j,t+1] * fwd[i,t] * bm[j,y[t+1]] * P[i,j]
                 sump1[t] += p1[i,j,t]
     
     # Berechnung von p2 = p(Z_{t}=i, Z_{t+1}=j | y, \theta) und p3 = p(Z_{t}=i | y, \theta)
@@ -152,8 +152,8 @@ def EM(y,n,m,maxiter=100, epsilon = 10e-12):
     b = np.random.random((n,m)) 
     # Normierung
     for i in range(n):
-        P[i,:] = P[i,:]/ np.sum(P[i,:])
-        b[i,:] = b[i,:]/ np.sum(b[i,:])
+        P[i,:] = P[i,:] / np.sum(P[i,:])
+        b[i,:] = b[i,:] / np.sum(b[i,:])
     pi = pi/np.sum(pi)
     
     # Iteration
